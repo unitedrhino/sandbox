@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+scan_external_skill() {
+  local skill_dir="$1"
+  if [[ ! -f "${skill_dir}/SKILL.md" ]]; then
+    echo "skill blocked: missing SKILL.md" >&2
+    return 1
+  fi
+  while IFS= read -r -d '' file; do
+    if grep -Eq 'curl[[:space:]].*\$[{]?[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)' "${file}"; then
+      echo "skill blocked: dangerous pattern in $(basename "${file}")" >&2
+      return 1
+    fi
+    if grep -Eq 'wget[[:space:]].*\$[{]?[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)' "${file}"; then
+      echo "skill blocked: dangerous pattern in $(basename "${file}")" >&2
+      return 1
+    fi
+    if grep -Eq 'ignore[[:space:]]+([[:alnum:]_]+[[:space:]]+)*(previous|all|above|prior)[[:space:]]+instructions' "${file}"; then
+      echo "skill blocked: dangerous pattern in $(basename "${file}")" >&2
+      return 1
+    fi
+    if grep -Eq 'rm[[:space:]]+-rf[[:space:]]+/' "${file}"; then
+      echo "skill blocked: dangerous pattern in $(basename "${file}")" >&2
+      return 1
+    fi
+    if grep -Eq '>[[:space:]]*/etc/' "${file}"; then
+      echo "skill blocked: dangerous pattern in $(basename "${file}")" >&2
+      return 1
+    fi
+  done < <(find "${skill_dir}" -type f -print0)
+}
+
+resolve_skill_exec_dir() {
+  local skill_dir="$1"
+  local source="$2"
+  local skill_name="$3"
+  if [[ -f "${skill_dir}/SKILL.md" ]]; then
+    printf '%s\n' "${skill_dir}"
+    return 0
+  fi
+  local current=""
+  if [[ -n "${CLAW_SKILL_STATE_DIR:-}" && -f "${CLAW_SKILL_STATE_DIR}/${source}/${skill_name}/current" ]]; then
+    current="$(tr -d '\r\n' < "${CLAW_SKILL_STATE_DIR}/${source}/${skill_name}/current")"
+  elif [[ -n "${CLAW_CONTROL_DIR:-}" && -f "${CLAW_CONTROL_DIR}/skills-state/${source}/${skill_name}/current" ]]; then
+    current="$(tr -d '\r\n' < "${CLAW_CONTROL_DIR}/skills-state/${source}/${skill_name}/current")"
+  elif [[ -f "${skill_dir}/current" ]]; then
+    current="$(tr -d '\r\n' < "${skill_dir}/current")"
+  fi
+  if [[ -n "${current}" && -f "${skill_dir}/versions/${current}/SKILL.md" ]]; then
+    printf '%s\n' "${skill_dir}/versions/${current}"
+    return 0
+  fi
+  return 1
+}
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: claw-skill <skill> [args...]" >&2
+  exit 2
+fi
+
+skill="$1"
+shift
+
+case "${skill}" in
+  ur-api)
+    if [[ $# -eq 0 ]]; then
+      echo "usage: claw-skill ur-api <command>" >&2
+      exit 2
+    fi
+    cmd="$1"
+    shift
+    case "${cmd}" in
+      check)
+        exec ur-api check "$@"
+        ;;
+      get-self)
+        exec ur-api api /api/v1/system/user/self/get-one --body '{"withTenant":true}' "$@"
+        ;;
+      *)
+        exec ur-api "${cmd}" "$@"
+        ;;
+    esac
+    ;;
+  *)
+    if [[ $# -eq 0 ]]; then
+      echo "usage: claw-skill ${skill} <command>" >&2
+      exit 2
+    fi
+
+    cmd="$1"
+    shift
+    for root in /opt/skills/shared /opt/skills/mapped; do
+      skill_dir="${root}/${skill}"
+      if [[ ! -d "${skill_dir}" ]]; then
+        continue
+      fi
+
+      source="mapped"
+      if [[ "${root}" == "/opt/skills/shared" ]]; then
+        source="shared"
+      fi
+      exec_dir="$(resolve_skill_exec_dir "${skill_dir}" "${source}" "${skill}")" || continue
+      scan_external_skill "${exec_dir}"
+      script_base="${exec_dir}/scripts/${cmd}"
+
+      if [[ -f "${script_base}.sh" ]]; then
+        exec /bin/bash "${script_base}.sh" "$@"
+      fi
+      if [[ -f "${script_base}.js" ]]; then
+        exec node "${script_base}.js" "$@"
+      fi
+      if [[ -f "${script_base}.py" ]]; then
+        exec python3 "${script_base}.py" "$@"
+      fi
+      if [[ -f "${script_base}" ]]; then
+        exec "${script_base}" "$@"
+      fi
+    done
+
+    echo "unsupported skill: ${skill}" >&2
+    exit 2
+    ;;
+esac

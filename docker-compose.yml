@@ -1,0 +1,53 @@
+services:
+  claw:
+    build:
+      context: ..
+      dockerfile: claw/Dockerfile
+    image: ${CLAW_IMAGE:-claw:dev}
+    restart: unless-stopped
+    privileged: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "${CLAW_PORT:-18080}:8080"
+    environment:
+      CLAW_LISTEN_ADDR: ":8080"
+      CLAW_RUNTIME_ID: "${CLAW_RUNTIME_ID:-rt-compose}"
+      CLAW_TENANT_CODE: "${CLAW_TENANT_CODE:-t1}"
+      CLAW_CLONE_ID: "${CLAW_CLONE_ID:-c1}"
+      CLAW_CLONE_KEY: "${CLAW_CLONE_KEY:-clone-a}"
+      CLAW_WORKSPACE: /workspace
+      CLAW_CONTROL_DIR: /runtime/control
+      CLAW_RUNNER_UID: "${CLAW_RUNNER_UID:-10001}"
+      CLAW_RUNNER_GID: "${CLAW_RUNNER_GID:-10001}"
+      CLAW_ENABLE_MOUNT_SANDBOX: "${CLAW_ENABLE_MOUNT_SANDBOX:-true}"
+      CLAW_ENABLE_SANDBOX_NET: "${CLAW_ENABLE_SANDBOX_NET:-true}"
+      CLAW_SANDBOX_PROXY_PORT: "${CLAW_SANDBOX_PROXY_PORT:-1080}"
+      CLAW_SANDBOX_BLOCKED_CIDRS: "${CLAW_SANDBOX_BLOCKED_CIDRS:-}"
+      CLAW_SANDBOX_ALLOWED_CIDRS: "${CLAW_SANDBOX_ALLOWED_CIDRS:-}"
+      CLAW_SANDBOX_ALLOWED_PORTS: "${CLAW_SANDBOX_ALLOWED_PORTS:-}"
+      CLAW_TASK_ENV_KEYS: "${CLAW_TASK_ENV_KEYS:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-}"
+      UR_BASE_URL: "${UR_BASE_URL:-}"
+      UR_APP_ID: "${UR_APP_ID:-}"
+      UR_TENANT_CODE: "${UR_TENANT_CODE:-}"
+      UR_ACCOUNT: "${UR_ACCOUNT:-}"
+      UR_PASSWORD: "${UR_PASSWORD:-}"
+    volumes:
+      - ${CLAW_WORKSPACE_DIR:-../../.temp/claw-compose/workspace}:/workspace
+      - ${CLAW_CONTROL_DIR_HOST:-../../.temp/claw-compose/control}:/runtime/control
+      - ${CLAW_SKILLS_STATE_DIR:-../../.temp/claw-compose/skills-state}:/runtime/skills-state
+      - ${CLAW_MAPPED_SKILLS_DIR:-../../.temp/claw-compose/skills/mapped}:/opt/skills/mapped:ro
+      - ${CLAW_SHARED_SKILLS_DIR:-../../.temp/claw-compose/skills/shared}:/opt/skills/shared:ro
+    networks:
+      - claw_runtime
+
+networks:
+  claw_runtime:
+    name: ${CLAW_DOCKER_NETWORK:-claw_runtime_net}
+    driver: bridge

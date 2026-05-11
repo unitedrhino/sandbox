@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -x /usr/local/bin/ur ]]; then
+  exec /usr/local/bin/ur "$@"
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_UR_DIR="$(cd "${SCRIPT_DIR}/../../cli/ur" && pwd)"
+exec /usr/local/go/bin/go run "${REPO_UR_DIR}" "$@"

@@ -1,0 +1,32 @@
+# 编译产物
+/sandbox
+/claw
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go 测试与调试
+*.test
+__debug_bin*
+debug
+debug.test
+
+# 依赖目录
+vendor/
+
+# 环境文件（可能包含密钥）
+.env
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store

@@ -1,0 +1,42 @@
+FROM golang:1.26.0 AS builder
+
+ENV GOPROXY=https://goproxy.cn,direct
+
+WORKDIR /src
+COPY .swagger ./.swagger
+COPY share ./share
+COPY claw ./claw
+COPY cli/ur ./cli/ur
+WORKDIR /src/claw
+RUN go build -ldflags="-s -w" -o /out/claw .
+WORKDIR /src/cli/ur
+RUN go build -o /out/ur .
+RUN UR_SWAGGER_DIR=/src/.swagger bash scripts/package-skill.sh /out/ur-package
+
+FROM node:24-bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        bash \
+        curl \
+        iproute2 \
+        iptables \
+        util-linux \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 10001 runner \
+    && useradd -m -u 10001 -g 10001 -s /usr/sbin/nologin runner
+
+WORKDIR /app
+COPY --from=builder /out/claw /app/claw
+COPY --from=builder /out/ur /usr/local/bin/ur
+COPY claw/bin/ur-api /usr/local/bin/ur-api
+COPY claw/bin/claw-skill /usr/local/bin/claw-skill
+COPY --from=builder /out/ur-package/skill /opt/skills-store/common/ur-api
+
+RUN chmod +x /usr/local/bin/ur /usr/local/bin/ur-api /usr/local/bin/claw-skill \
+    && find /opt/skills-store/common/ur-api/scripts -type f -name '*.sh' -exec chmod +x {} +
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/claw"]
