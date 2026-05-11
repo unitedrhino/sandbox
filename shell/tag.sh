@@ -8,7 +8,7 @@ if [ $# -eq 0 ]; then
 fi
 
 tag="$1"
-git tag "$tag"
+git tag -a "$tag" -m "sandbox $tag"
 git push origin "$tag"
 git push gitee "$tag"
 echo "标签 $tag 已推送至 origin 和 gitee"
