@@ -45,27 +45,32 @@ func isCgroupWritable() bool {
 }
 
 // WrapCommandWithPrlimit 使用系统 prlimit 命令包装执行命令
-// 当 cgroup 不可用时作为降级方案，限制内存（进程数由 Docker PidsLimit 兜底）。
+// 当 cgroup 不可用时作为降级方案。
 //
-// 注意：--nproc 被有意跳过。RLIMIT_NPROC 是 UID 级别的限制，在 Docker 默认
-// 配置（无 userns-remap）下，多个容器中的同一个 UID 会共享 nproc 配额。
-// 一个容器中的 fork bomb 会影响所有使用相同 UID 的容器。Docker 的 PidsLimit
-// 提供了按容器的进程数保护，足以替代 prlimit --nproc。
+// 注意：
+// 1. --nproc 被有意跳过。RLIMIT_NPROC 是 UID 级别的限制，在 Docker 默认
+//    配置（无 userns-remap）下，多个容器中的同一个 UID 会共享 nproc 配额。
+//    Docker 的 PidsLimit 提供了按容器的进程数保护，足以替代 prlimit --nproc。
+// 2. --as（虚拟地址空间）不限制，因为 Go 程序启动需要较大的虚拟地址空间，
+//    限制后会导致 runtime 报错 "failed to reserve page summary memory"。
+//    Docker 容器已通过 HostConfig.Memory 做了硬限制。
 func WrapCommandWithPrlimit(cmd *exec.Cmd, limits ResourceLimits) error {
+	// Docker 容器本身已有 Memory/CPU/Pids 限制，prlimit 降级方案不再额外限制资源。
+	// 这里仅保留命令包装结构，以便后续如需增加其他 prlimit 限制可在此扩展。
+	_ = limits
+
+	prlimitPath, err := exec.LookPath("prlimit")
+	if err != nil {
+		return fmt.Errorf("find prlimit: %w", err)
+	}
+
 	args := []string{}
+	args = append(args, "--")
+	args = append(args, cmd.Path)
+	args = append(args, cmd.Args[1:]...)
 
-	if limits.MemoryMB > 0 {
-		args = append(args, fmt.Sprintf("--as=%d", limits.MemoryMB*1024*1024))
-	}
-
-	if len(args) > 0 {
-		args = append(args, "--")
-		args = append(args, cmd.Path)
-		args = append(args, cmd.Args[1:]...)
-
-		cmd.Path = "prlimit"
-		cmd.Args = append([]string{"prlimit"}, args...)
-	}
+	cmd.Path = prlimitPath
+	cmd.Args = append([]string{"prlimit"}, args...)
 
 	return nil
 }
