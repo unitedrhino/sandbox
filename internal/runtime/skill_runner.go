@@ -228,8 +228,8 @@ func (r *BuiltinSkillRunner) Resolve(req ExecRequest) (ExecutionSpec, error) {
 	}
 
 	switch spec.Command[0] {
-	case "claw-skill":
-		return r.resolveClawSkill(spec)
+	case "sandbox-skill":
+		return r.resolveSandboxSkill(spec)
 	case "ur-api":
 		skill, ok := r.catalog.Lookup("ur-api")
 		if !ok {
@@ -245,9 +245,9 @@ func (r *BuiltinSkillRunner) Resolve(req ExecRequest) (ExecutionSpec, error) {
 	}
 }
 
-func (r *BuiltinSkillRunner) resolveClawSkill(spec ExecutionSpec) (ExecutionSpec, error) {
+func (r *BuiltinSkillRunner) resolveSandboxSkill(spec ExecutionSpec) (ExecutionSpec, error) {
 	if len(spec.Command) < 3 {
-		return ExecutionSpec{}, fmt.Errorf("usage: claw-skill <skill> <command>")
+		return ExecutionSpec{}, fmt.Errorf("usage: sandbox-skill <skill> <command>")
 	}
 
 	skillName := spec.Command[1]

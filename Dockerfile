@@ -14,10 +14,10 @@ RUN git clone --depth 1 https://gitee.com/mirrors/quickjs.git /tmp/quickjs \
 WORKDIR /src
 COPY backend/.swagger ./.swagger
 COPY backend/share ./share
-COPY .gits/sandbox ./claw
+COPY .gits/sandbox ./sandbox
 COPY .gits/cli ./cli/ur
-WORKDIR /src/claw
-RUN go build -ldflags="-s -w" -o /out/claw .
+WORKDIR /src/sandbox
+RUN go build -ldflags="-s -w" -o /out/sandbox .
 WORKDIR /src/cli/ur
 RUN go build -ldflags="-s -w" -o /out/ur .
 
@@ -41,11 +41,11 @@ RUN apt-get update \
     && useradd -m -u 10001 -g 10001 -s /usr/sbin/nologin runner
 
 WORKDIR /app
-COPY --from=builder /out/claw /app/claw
+COPY --from=builder /out/sandbox /app/sandbox
 COPY --from=builder /out/ur /usr/local/bin/ur
 COPY --from=builder /out/qjs /usr/local/bin/qjs
-COPY --from=builder /src/claw/bin/ur-api /usr/local/bin/ur-api
-COPY --from=builder /src/claw/bin/claw-skill /usr/local/bin/claw-skill
+COPY --from=builder /src/sandbox/bin/ur-api /usr/local/bin/ur-api
+COPY --from=builder /src/sandbox/bin/sandbox-skill /usr/local/bin/sandbox-skill
 COPY --from=builder /out/ur-package/x64-linux/skill /opt/skills-store/common/ur-api
 COPY --from=builder /out/ur-package/x64-linux/skill/ur-platform-manage /opt/skills-store/shared/ur-platform-manage
 COPY --from=builder /out/ur-package/x64-linux/skill/ur-iot /opt/skills-store/shared/ur-iot
@@ -60,7 +60,7 @@ RUN for app in platform-manage iot org-manage org-energy console; do \
       && chmod +x "/usr/local/bin/ur-${app}"; \
     done
 
-RUN chmod +x /usr/local/bin/ur /usr/local/bin/qjs /usr/local/bin/ur-api /usr/local/bin/claw-skill \
+RUN chmod +x /usr/local/bin/ur /usr/local/bin/qjs /usr/local/bin/ur-api /usr/local/bin/sandbox-skill \
     && find /opt/skills-store/common/ur-api -type f -name '*.sh' -exec chmod +x {} + \
     && mkdir -p /home/runner/.ur && chown -R runner:runner /home/runner
 
@@ -68,4 +68,4 @@ ENV HOME=/home/runner
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/claw"]
+ENTRYPOINT ["/app/sandbox"]

@@ -16,12 +16,12 @@ import (
 func main() {
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
-		log.Fatalf("load claw config: %v", err)
+		log.Fatalf("load sandbox config: %v", err)
 	}
 
 	_, cleanup, err := bootstrap.Prepare(cfg)
 	if err != nil {
-		log.Fatalf("bootstrap claw runtime: %v", err)
+		log.Fatalf("bootstrap sandbox runtime: %v", err)
 	}
 	defer cleanup()
 
@@ -58,7 +58,7 @@ func main() {
 		_ = srv.Close()
 	}()
 
-	log.Printf("claw listening on %s runtime=%s clone=%s", cfg.ListenAddr, cfg.RuntimeID, cfg.CloneID)
+	log.Printf("sandbox listening on %s runtime=%s clone=%s", cfg.ListenAddr, cfg.RuntimeID, cfg.CloneID)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("listen and serve: %v", err)
 	}

@@ -11,7 +11,7 @@ func TestBuiltinSkillRunner_ResolvesClawSkillGetSelf(t *testing.T) {
 	runner := NewBuiltinSkillRunner(DefaultBuiltinSkillCatalog())
 
 	spec, err := runner.Resolve(ExecRequest{
-		Command:   []string{"claw-skill", "ur-api", "get-self"},
+		Command:   []string{"sandbox-skill", "ur-api", "get-self"},
 		Timeout:   3 * time.Second,
 		Workspace: "/workspace",
 	})
@@ -79,7 +79,7 @@ func TestBuiltinSkillRunner_RejectsUnsupportedSkill(t *testing.T) {
 	runner := NewBuiltinSkillRunner(DefaultBuiltinSkillCatalog())
 
 	_, err := runner.Resolve(ExecRequest{
-		Command: []string{"claw-skill", "unknown-skill", "run"},
+		Command: []string{"sandbox-skill", "unknown-skill", "run"},
 	})
 	if err == nil {
 		t.Fatal("Resolve() should fail for unsupported skill")
@@ -171,7 +171,7 @@ func TestBuiltinSkillRunner_ResolvesMappedSkillRun(t *testing.T) {
 
 	runner := NewBuiltinSkillRunner(NewCombinedSkillCatalog(builtinRoot, "", mappedRoot, t.TempDir()))
 	spec, err := runner.Resolve(ExecRequest{
-		Command: []string{"claw-skill", "demo-skill", "run", "--foo"},
+		Command: []string{"sandbox-skill", "demo-skill", "run", "--foo"},
 	})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
@@ -221,7 +221,7 @@ func TestBuiltinSkillRunner_RejectsBlockedMappedSkill(t *testing.T) {
 
 	runner := NewBuiltinSkillRunner(NewCombinedSkillCatalog("", "", mappedRoot, ""))
 	_, err := runner.Resolve(ExecRequest{
-		Command: []string{"claw-skill", "danger-skill", "run"},
+		Command: []string{"sandbox-skill", "danger-skill", "run"},
 	})
 	if err == nil {
 		t.Fatal("Resolve() should fail for blocked mapped skill")
@@ -292,7 +292,7 @@ func TestBuiltinSkillRunner_ResolvesSharedSkillRun(t *testing.T) {
 
 	runner := NewBuiltinSkillRunner(NewCombinedSkillCatalog("", sharedRoot, "", ""))
 	spec, err := runner.Resolve(ExecRequest{
-		Command: []string{"claw-skill", "team-skill", "run"},
+		Command: []string{"sandbox-skill", "team-skill", "run"},
 	})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)

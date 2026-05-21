@@ -84,7 +84,7 @@ func (r *ResourceLimiter) Apply(pid int) (func(), error) {
 		return nil, nil
 	}
 
-	cgroupName := fmt.Sprintf("claw_%d_%d", os.Getpid(), pid)
+	cgroupName := fmt.Sprintf("sandbox_%d_%d", os.Getpid(), pid)
 	cgroupPath := filepath.Join(cgroupRoot, cgroupName)
 	if err := os.Mkdir(cgroupPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create cgroup: %w", err)

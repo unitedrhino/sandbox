@@ -30,7 +30,7 @@ func (g *commandStartGate) Wrap(command []string) []string {
 		"/bin/sh",
 		"-lc",
 		`if [ -r /proc/self/fd/3 ]; then dd bs=1 count=1 <&3 >/dev/null 2>&1 || true; fi; exec "$@"`,
-		"claw-net-bootstrap",
+		"sandbox-net-bootstrap",
 	}
 	args = append(args, command...)
 	return args

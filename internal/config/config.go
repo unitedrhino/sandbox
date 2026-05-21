@@ -48,53 +48,53 @@ type Config struct {
 }
 
 func LoadFromEnv() (Config, error) {
-	workspaceRoot := strings.TrimSpace(os.Getenv("CLAW_WORKSPACE"))
-	workspaceHostRoot := strings.TrimSpace(os.Getenv("CLAW_WORKSPACE_HOST_PATH"))
+	workspaceRoot := strings.TrimSpace(os.Getenv("SANDBOX_WORKSPACE"))
+	workspaceHostRoot := strings.TrimSpace(os.Getenv("SANDBOX_WORKSPACE_HOST_PATH"))
 	cfg := Config{
-		ListenAddr:             getEnvDefault("CLAW_LISTEN_ADDR", ":8080"),
-		RuntimeID:              strings.TrimSpace(os.Getenv("CLAW_RUNTIME_ID")),
-		TenantCode:             strings.TrimSpace(os.Getenv("CLAW_TENANT_CODE")),
-		AgentID:                strings.TrimSpace(os.Getenv("CLAW_AGENT_ID")),
-		CloneID:                strings.TrimSpace(os.Getenv("CLAW_CLONE_ID")),
-		CloneKey:               strings.TrimSpace(os.Getenv("CLAW_CLONE_KEY")),
-		SessionID:              strings.TrimSpace(os.Getenv("CLAW_SESSION_ID")),
+		ListenAddr:             getEnvDefault("SANDBOX_LISTEN_ADDR", ":8080"),
+		RuntimeID:              strings.TrimSpace(os.Getenv("SANDBOX_RUNTIME_ID")),
+		TenantCode:             strings.TrimSpace(os.Getenv("SANDBOX_TENANT_CODE")),
+		AgentID:                strings.TrimSpace(os.Getenv("SANDBOX_AGENT_ID")),
+		CloneID:                strings.TrimSpace(os.Getenv("SANDBOX_CLONE_ID")),
+		CloneKey:               strings.TrimSpace(os.Getenv("SANDBOX_CLONE_KEY")),
+		SessionID:              strings.TrimSpace(os.Getenv("SANDBOX_SESSION_ID")),
 		WorkspaceRoot:          workspaceRoot,
-		ControlDir:             getEnvDefault("CLAW_CONTROL_DIR", "/runtime/control"),
+		ControlDir:             getEnvDefault("SANDBOX_CONTROL_DIR", "/runtime/control"),
 		WorkspaceHostRoot:      workspaceHostRoot,
-		AisvrBaseURL:           strings.TrimSpace(os.Getenv("CLAW_AISVR_BASE_URL")),
-		AisvrToken:             strings.TrimSpace(os.Getenv("CLAW_AISVR_TOKEN")),
-		ProxyPort:              getEnvInt("CLAW_SANDBOX_PROXY_PORT", 1080),
-		BlockedCIDRs:           getEnvCSV("CLAW_SANDBOX_BLOCKED_CIDRS"),
-		AllowedCIDRs:           getEnvCSV("CLAW_SANDBOX_ALLOWED_CIDRS"),
-		AllowedPorts:           getEnvIntCSV("CLAW_SANDBOX_ALLOWED_PORTS"),
-		AllowedInternalTargets: getEnvCSV("CLAW_ALLOWED_INTERNAL_TARGETS"),
-		CPUQuota:               getEnvInt64("CLAW_CPU_LIMIT", 50),
-		MemoryLimitMB:          getEnvInt64("CLAW_MEMORY_LIMIT_MB", 512),
-		MaxProcesses:           getEnvInt64("CLAW_MAX_PROCESSES", 64),
-		IdleTimeout:            time.Duration(getEnvInt("CLAW_IDLE_TIMEOUT_SEC", 10)) * time.Second,
-		RunnerUID:              uint32(getEnvInt("CLAW_RUNNER_UID", 10001)),
-		RunnerGID:              uint32(getEnvInt("CLAW_RUNNER_GID", 10001)),
-		SkillStoreCommonRoot:   getEnvDefault("CLAW_SKILL_STORE_COMMON_ROOT", "/opt/skills-store/common"),
-		SkillStoreSharedRoot:   getEnvDefault("CLAW_SKILL_STORE_SHARED_ROOT", "/opt/skills-store/shared"),
-		SkillStoreMappedRoot:   getEnvDefault("CLAW_SKILL_STORE_MAPPED_ROOT", "/opt/skills-store/mapped"),
-		RuntimeSkillCommonRoot: getEnvDefault("CLAW_RUNTIME_SKILL_COMMON_ROOT", "/runtime/skills/common"),
-		RuntimeSkillSharedRoot: getEnvDefault("CLAW_RUNTIME_SKILL_SHARED_ROOT", "/runtime/skills/shared"),
-		RuntimeSkillMappedRoot: getEnvDefault("CLAW_RUNTIME_SKILL_MAPPED_ROOT", "/runtime/skills/mapped"),
+		AisvrBaseURL:           strings.TrimSpace(os.Getenv("SANDBOX_AISVR_BASE_URL")),
+		AisvrToken:             strings.TrimSpace(os.Getenv("SANDBOX_AISVR_TOKEN")),
+		ProxyPort:              getEnvInt("SANDBOX_PROXY_PORT", 1080),
+		BlockedCIDRs:           getEnvCSV("SANDBOX_BLOCKED_CIDRS"),
+		AllowedCIDRs:           getEnvCSV("SANDBOX_ALLOWED_CIDRS"),
+		AllowedPorts:           getEnvIntCSV("SANDBOX_ALLOWED_PORTS"),
+		AllowedInternalTargets: getEnvCSV("SANDBOX_ALLOWED_INTERNAL_TARGETS"),
+		CPUQuota:               getEnvInt64("SANDBOX_CPU_LIMIT", 50),
+		MemoryLimitMB:          getEnvInt64("SANDBOX_MEMORY_LIMIT_MB", 512),
+		MaxProcesses:           getEnvInt64("SANDBOX_MAX_PROCESSES", 64),
+		IdleTimeout:            time.Duration(getEnvInt("SANDBOX_IDLE_TIMEOUT_SEC", 10)) * time.Second,
+		RunnerUID:              uint32(getEnvInt("SANDBOX_RUNNER_UID", 10001)),
+		RunnerGID:              uint32(getEnvInt("SANDBOX_RUNNER_GID", 10001)),
+		SkillStoreCommonRoot:   getEnvDefault("SANDBOX_SKILL_STORE_COMMON_ROOT", "/opt/skills-store/common"),
+		SkillStoreSharedRoot:   getEnvDefault("SANDBOX_SKILL_STORE_SHARED_ROOT", "/opt/skills-store/shared"),
+		SkillStoreMappedRoot:   getEnvDefault("SANDBOX_SKILL_STORE_MAPPED_ROOT", "/opt/skills-store/mapped"),
+		RuntimeSkillCommonRoot: getEnvDefault("SANDBOX_RUNTIME_SKILL_COMMON_ROOT", "/runtime/skills/common"),
+		RuntimeSkillSharedRoot: getEnvDefault("SANDBOX_RUNTIME_SKILL_SHARED_ROOT", "/runtime/skills/shared"),
+		RuntimeSkillMappedRoot: getEnvDefault("SANDBOX_RUNTIME_SKILL_MAPPED_ROOT", "/runtime/skills/mapped"),
 		TaskBaseEnv:            collectTaskBaseEnv(),
 	}
 	// 网络隔离为强制安全要求，默认启用。环境变量仅用于紧急关闭。
-	cfg.EnableSandboxNet = getEnvBool("CLAW_ENABLE_SANDBOX_NET", true)
-	cfg.EnableMountSandbox = getEnvBool("CLAW_ENABLE_MOUNT_SANDBOX", false)
+	cfg.EnableSandboxNet = getEnvBool("SANDBOX_ENABLE_SANDBOX_NET", true)
+	cfg.EnableMountSandbox = getEnvBool("SANDBOX_ENABLE_MOUNT_SANDBOX", false)
 
 	for _, field := range []struct {
 		name  string
 		value string
 	}{
-		{"CLAW_RUNTIME_ID", cfg.RuntimeID},
-		{"CLAW_TENANT_CODE", cfg.TenantCode},
-		{"CLAW_CLONE_ID", cfg.CloneID},
-		{"CLAW_CLONE_KEY", cfg.CloneKey},
-		{"CLAW_WORKSPACE", cfg.WorkspaceRoot},
+		{"SANDBOX_RUNTIME_ID", cfg.RuntimeID},
+		{"SANDBOX_TENANT_CODE", cfg.TenantCode},
+		{"SANDBOX_CLONE_ID", cfg.CloneID},
+		{"SANDBOX_CLONE_KEY", cfg.CloneKey},
+		{"SANDBOX_WORKSPACE", cfg.WorkspaceRoot},
 	} {
 		if field.value == "" {
 			return Config{}, fmt.Errorf("%s is required", field.name)
@@ -120,15 +120,15 @@ func LoadFromEnv() (Config, error) {
 func deriveCloneWorkspacePath(root, tenantCode, cloneKey, cloneID string) (string, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
-		return "", fmt.Errorf("CLAW_WORKSPACE is required")
+		return "", fmt.Errorf("SANDBOX_WORKSPACE is required")
 	}
 	tenantSegment := sanitizeWorkspaceSegment(tenantCode)
 	if tenantSegment == "" {
-		return "", fmt.Errorf("CLAW_TENANT_CODE resolves to an empty workspace segment")
+		return "", fmt.Errorf("SANDBOX_TENANT_CODE resolves to an empty workspace segment")
 	}
 	cloneIDSegment := sanitizeWorkspaceSegment(cloneID)
 	if cloneIDSegment == "" {
-		return "", fmt.Errorf("CLAW_CLONE_ID resolves to an empty workspace segment")
+		return "", fmt.Errorf("SANDBOX_CLONE_ID resolves to an empty workspace segment")
 	}
 	cloneSegment := sanitizeWorkspaceSegment(cloneKey)
 	segments := []string{filepath.Clean(root), tenantSegment}
@@ -274,7 +274,7 @@ func collectTaskBaseEnv() map[string]string {
 		"AZURE_OPENAI_BASE_URL",
 		"AZURE_OPENAI_MODEL",
 	}
-	keys = append(keys, getEnvCSV("CLAW_TASK_ENV_KEYS")...)
+	keys = append(keys, getEnvCSV("SANDBOX_TASK_ENV_KEYS")...)
 	out := make(map[string]string)
 	for _, key := range keys {
 		if value := os.Getenv(key); value != "" {

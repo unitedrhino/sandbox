@@ -97,14 +97,14 @@ func executeCommand(ctx context.Context, spec ExecutionSpec, opts config.ExecOpt
 	cmd := exec.CommandContext(execCtx, command[0], command[1:]...)
 	cmd.Dir = spec.Workspace
 	// Build a minimal safe environment: only known-safe variables plus
-	// CLAW_* runtime vars. Do not inherit the full os.Environ() which
+	// SANDBOX_* runtime vars. Do not inherit the full os.Environ() which
 	// may contain sensitive data injected by the container orchestrator.
 	cmd.Env = buildSafeEnv(os.Environ(), opts.RunnerUID)
 	if startGate != nil {
 		startGate.Attach(cmd)
 	}
 	if opts.ControlDir != "" {
-		cmd.Env = append(cmd.Env, "CLAW_SKILL_STATE_DIR=/runtime/skills-state")
+		cmd.Env = append(cmd.Env, "SANDBOX_SKILL_STATE_DIR=/runtime/skills-state")
 	}
 	for k, v := range spec.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
@@ -292,7 +292,7 @@ func executeCommand(ctx context.Context, spec ExecutionSpec, opts config.ExecOpt
 }
 
 // buildSafeEnv creates a minimal safe environment for sandboxed processes.
-// It only includes known-safe system variables plus CLAW_* runtime variables.
+// It only includes known-safe system variables plus SANDBOX_* runtime variables.
 // Sensitive container-level variables (DB credentials, API keys, etc.) are excluded.
 func buildSafeEnv(fullEnv []string, runnerUID uint32) []string {
 	env := []string{
@@ -304,7 +304,7 @@ func buildSafeEnv(fullEnv []string, runnerUID uint32) []string {
 		"SHELL=/bin/sh",
 	}
 	for _, e := range fullEnv {
-		if strings.HasPrefix(e, "CLAW_") {
+		if strings.HasPrefix(e, "SANDBOX_") {
 			env = append(env, e)
 		}
 		// Preserve locale settings if present
@@ -346,12 +346,12 @@ func wrapWithMountSandbox(workspace, controlDir string, uid, gid uint32, command
 		"export TMPDIR='/tmp'",
 	}
 	if controlDir != "" {
-		exportLines = append(exportLines, "export CLAW_SKILL_STATE_DIR='/runtime/skills-state'")
+		exportLines = append(exportLines, "export SANDBOX_SKILL_STATE_DIR='/runtime/skills-state'")
 	}
 
 	script := strings.Join([]string{
 		"set -e",
-		"ROOTFS=$(mktemp -d /root/claw-rootfs-XXXXXX)",
+		"ROOTFS=$(mktemp -d /root/sandbox-rootfs-XXXXXX)",
 		"chmod 0755 \"$ROOTFS\"",
 		"cleanup() { umount -l \"$ROOTFS/workspace\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/bin\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/usr\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/lib\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/lib64\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/etc\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/dev\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/proc\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/opt\" >/dev/null 2>&1 || true; umount -l \"$ROOTFS/runtime/skills-state\" >/dev/null 2>&1 || true; rm -rf \"$ROOTFS\" >/dev/null 2>&1 || true; }",
 		"trap cleanup EXIT",
@@ -378,7 +378,7 @@ func wrapWithMountSandbox(workspace, controlDir string, uid, gid uint32, command
 			uid, gid, shellSingleQuote(strings.Join(append(exportLines, `cd /workspace`, `exec "$@"`), "\n"))),
 	}, "\n")
 
-	args := []string{"unshare", "--mount", "--propagation", "private", "/bin/bash", "-lc", script, "claw-mount-sandbox"}
+	args := []string{"unshare", "--mount", "--propagation", "private", "/bin/bash", "-lc", script, "sandbox-mount-sandbox"}
 	args = append(args, command...)
 	return args
 }
@@ -401,11 +401,11 @@ func validateDirectExternalSkillAccess(spec ExecutionSpec, opts config.ExecOptio
 	}
 	joined := strings.Join(spec.Command, " ")
 	if strings.Contains(joined, sharedRoot+"/") || strings.Contains(joined, mappedRoot+"/") {
-		return fmt.Errorf("direct external skill path execution is blocked; use claw-skill")
+		return fmt.Errorf("direct external skill path execution is blocked; use sandbox-skill")
 	}
 	for _, arg := range spec.Command {
 		if strings.HasPrefix(arg, sharedRoot+"/") || strings.HasPrefix(arg, mappedRoot+"/") {
-			return fmt.Errorf("direct external skill path execution is blocked; use claw-skill")
+			return fmt.Errorf("direct external skill path execution is blocked; use sandbox-skill")
 		}
 	}
 	return nil
@@ -420,11 +420,11 @@ func buildInternalWhitelistFilter(targets []string) (*proxy.IPFilter, error) {
 		}
 		host, portStr, err := net.SplitHostPort(target)
 		if err != nil {
-			return nil, fmt.Errorf("invalid CLAW_ALLOWED_INTERNAL_TARGETS entry %q: %w", target, err)
+			return nil, fmt.Errorf("invalid SANDBOX_ALLOWED_INTERNAL_TARGETS entry %q: %w", target, err)
 		}
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid CLAW_ALLOWED_INTERNAL_TARGETS port %q: %w", target, err)
+			return nil, fmt.Errorf("invalid SANDBOX_ALLOWED_INTERNAL_TARGETS port %q: %w", target, err)
 		}
 		ips, err := net.LookupIP(host)
 		if err != nil {
@@ -438,7 +438,7 @@ func buildInternalWhitelistFilter(targets []string) (*proxy.IPFilter, error) {
 		}
 	}
 	if len(rules) == 0 {
-		return nil, fmt.Errorf("no valid CLAW_ALLOWED_INTERNAL_TARGETS resolved")
+		return nil, fmt.Errorf("no valid SANDBOX_ALLOWED_INTERNAL_TARGETS resolved")
 	}
 	return proxy.NewWhitelistFilterWithPorts(rules)
 }

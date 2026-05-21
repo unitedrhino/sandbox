@@ -329,11 +329,11 @@ func (p *NetworkProxy) configureSandboxVeth() error {
 		// Bring up loopback
 		{"ip", "link", "set", "lo", "up"},
 		// Keep Docker-provided eth0 intact. The sandbox proxy interface uses a dedicated name.
-		{"ip", "link", "set", p.vethSandbox.Attrs().Name, "name", "claw0"},
+		{"ip", "link", "set", p.vethSandbox.Attrs().Name, "name", "sandbox0"},
 		// Add IP address
-		{"ip", "addr", "add", fmt.Sprintf("%s/24", p.config.SandboxIP), "dev", "claw0"},
-		// Bring up claw0. The connected route to BridgeIP is created automatically.
-		{"ip", "link", "set", "claw0", "up"},
+		{"ip", "addr", "add", fmt.Sprintf("%s/24", p.config.SandboxIP), "dev", "sandbox0"},
+		// Bring up sandbox0. The connected route to BridgeIP is created automatically.
+		{"ip", "link", "set", "sandbox0", "up"},
 	}
 
 	for _, args := range commands {

@@ -67,7 +67,7 @@ func TestRuntimeEngine_SelectsDirectBackendWithoutIsolation(t *testing.T) {
 	}
 
 	result, err := engine.Execute(context.Background(), ExecRequest{
-		Command: []string{"claw-skill", "ur-api", "check"},
+		Command: []string{"sandbox-skill", "ur-api", "check"},
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -97,7 +97,7 @@ func TestRuntimeEngine_DescribeSkillExecution(t *testing.T) {
 	engine.reloadSkillRunner()
 
 	meta, err := engine.Describe(ExecRequest{
-		Command: []string{"claw-skill", "ur-api", "get-self"},
+		Command: []string{"sandbox-skill", "ur-api", "get-self"},
 	})
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
@@ -220,7 +220,7 @@ func TestRuntimeEngine_ActivateSkillVersion(t *testing.T) {
 		t.Fatalf("updated version = %q", updated.Version)
 	}
 
-	meta, err := engine.Describe(ExecRequest{Command: []string{"claw-skill", "team-skill", "run"}})
+	meta, err := engine.Describe(ExecRequest{Command: []string{"sandbox-skill", "team-skill", "run"}})
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
 	}
