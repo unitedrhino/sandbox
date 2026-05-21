@@ -176,7 +176,7 @@ func TestBuiltinSkillRunner_ResolvesMappedSkillRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
-	want := []string{"/bin/bash", runPath, "--foo"}
+	want := []string{runPath, "--foo"}
 	if len(spec.Command) != len(want) {
 		t.Fatalf("command len = %d want %d (%v)", len(spec.Command), len(want), spec.Command)
 	}
@@ -297,7 +297,7 @@ func TestBuiltinSkillRunner_ResolvesSharedSkillRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
-	want := []string{"/bin/bash", runPath}
+	want := []string{runPath}
 	if len(spec.Command) != len(want) {
 		t.Fatalf("command len = %d want %d (%v)", len(spec.Command), len(want), spec.Command)
 	}

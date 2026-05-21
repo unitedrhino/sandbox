@@ -293,22 +293,14 @@ func (r *BuiltinSkillRunner) resolveMappedSkill(spec ExecutionSpec, skill Builti
 	spec.SkillTrustLevel = skill.TrustLevel
 
 	scriptBase := filepath.Join(skill.ActiveDir, "scripts", action)
-	switch {
-	case fileExists(scriptBase + ".sh"):
-		spec.Command = append([]string{"/bin/bash", scriptBase + ".sh"}, args...)
-		return spec, nil
-	case fileExists(scriptBase + ".js"):
-		spec.Command = append([]string{"node", scriptBase + ".js"}, args...)
-		return spec, nil
-	case fileExists(scriptBase + ".py"):
-		spec.Command = append([]string{"python3", scriptBase + ".py"}, args...)
-		return spec, nil
-	case fileExists(scriptBase):
-		spec.Command = append([]string{scriptBase}, args...)
-		return spec, nil
-	default:
-		return ExecutionSpec{}, fmt.Errorf("unsupported skill action: %s/%s", skill.Name, action)
+	for _, ext := range []string{".sh", ".js", ".py", ""} {
+		path := scriptBase + ext
+		if fileExists(path) {
+			spec.Command = append([]string{path}, args...)
+			return spec, nil
+		}
 	}
+	return ExecutionSpec{}, fmt.Errorf("unsupported skill action: %s/%s", skill.Name, action)
 }
 
 func compareVersionLike(a, b string) int {
