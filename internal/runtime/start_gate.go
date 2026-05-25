@@ -26,10 +26,15 @@ func newCommandStartGate() (*commandStartGate, error) {
 }
 
 func (g *commandStartGate) Wrap(command []string) []string {
+	// 使用 dd 直接从 fd 3 读取一个字节来阻塞等待父进程发出信号。
+	// 不能使用 [ -r /proc/self/fd/3 ] 做检测，因为当 CLONE_NEWNET 与
+	// credential drop (SysProcAttr.Credential) 同时使用时，/proc/self/fd/3
+	// 的 access() 权限检查会错误地返回不可读（即使 fd 实际可用）。
+	// 直接尝试读取，dd 失败时通过 || true 兜底继续执行。
 	args := []string{
 		"/bin/sh",
-		"-lc",
-		`if [ -r /proc/self/fd/3 ]; then dd bs=1 count=1 <&3 >/dev/null 2>&1 || true; fi; exec "$@"`,
+		"-c",
+		`dd bs=1 count=1 <&3 >/dev/null 2>&1 || true; exec "$@"`,
 		"sandbox-net-bootstrap",
 	}
 	args = append(args, command...)

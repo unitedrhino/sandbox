@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -313,65 +314,81 @@ func (p *NetworkProxy) moveVethToNetns() error {
 }
 
 func (p *NetworkProxy) configureSandboxVeth() error {
-	// We need to execute commands in the container's network namespace
-	// Use nsenter or /proc/{pid}/ns/net with ip netns exec equivalent
-
-	// Get the network namespace handle
+	// 通过 netns.Set 切换到子进程的网络命名空间，直接执行 ip/iptables 配置命令。
+	// 不依赖子进程 PID 存活，只需命名空间句柄有效即可。
 	ns, err := netns.GetFromPid(p.containerPID)
 	if err != nil {
 		return fmt.Errorf("get netns from pid %d: %w", p.containerPID, err)
 	}
+	// 保持 ns 句柄在整个配置过程中有效（函数返回后才关闭）
 	defer ns.Close()
 
-	// Execute configuration in the network namespace
-	// We use nsenter to run commands in the target namespace
-	commands := [][]string{
-		// Bring up loopback
-		{"ip", "link", "set", "lo", "up"},
-		// Keep Docker-provided eth0 intact. The sandbox proxy interface uses a dedicated name.
-		{"ip", "link", "set", p.vethSandbox.Attrs().Name, "name", "sandbox0"},
-		// Add IP address
-		{"ip", "addr", "add", fmt.Sprintf("%s/24", p.config.SandboxIP), "dev", "sandbox0"},
-		// Bring up sandbox0. The connected route to BridgeIP is created automatically.
-		{"ip", "link", "set", "sandbox0", "up"},
+	// 将当前 goroutine 绑定到唯一的 OS 线程，以便安全地切换网络命名空间
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// 保存当前（容器）命名空间，配置完成后恢复
+	origNs, err := netns.Get()
+	if err != nil {
+		return fmt.Errorf("get current netns: %w", err)
+	}
+	defer origNs.Close()
+
+	// 切换到子进程的网络命名空间
+	if err := netns.Set(ns); err != nil {
+		return fmt.Errorf("switch to sandbox netns: %w", err)
 	}
 
-	for _, args := range commands {
-		if err := p.runInSandboxNetns(args...); err != nil {
+	// 无论后续是否出错，必须恢复原始命名空间
+	restoreNs := func() {
+		if setErr := netns.Set(origNs); setErr != nil {
+			fmt.Fprintf(os.Stderr, "configureSandboxVeth: failed to restore original netns: %v\n", setErr)
+		}
+	}
+
+	// 在子进程命名空间中直接执行命令
+	runCmd := func(args ...string) error {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	vethOrigName := p.vethSandbox.Attrs().Name
+
+	steps := [][]string{
+		{"ip", "link", "set", "lo", "up"},
+		{"ip", "link", "set", vethOrigName, "name", "sandbox0"},
+		{"ip", "addr", "add", fmt.Sprintf("%s/24", p.config.SandboxIP), "dev", "sandbox0"},
+		{"ip", "link", "set", "sandbox0", "up"},
+	}
+	for _, args := range steps {
+		if err := runCmd(args...); err != nil {
+			restoreNs()
 			return fmt.Errorf("run command %v: %w", args, err)
 		}
 	}
 
-	if err := p.applySandboxEgressPolicy(); err != nil {
-		return fmt.Errorf("apply sandbox egress policy: %w", err)
-	}
-
-	return nil
-}
-
-func (p *NetworkProxy) runInSandboxNetns(args ...string) error {
-	cmd := exec.Command("nsenter", "-t", fmt.Sprintf("%d", p.containerPID), "-n")
-	cmd.Args = append(cmd.Args, args...)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func (p *NetworkProxy) applySandboxEgressPolicy() error {
-	policyCommands := [][]string{
+	// 应用 iptables 出口策略
+	policySteps := [][]string{
 		{"iptables", "-w", "-F", "OUTPUT"},
 		{"iptables", "-w", "-P", "OUTPUT", "DROP"},
 		{"iptables", "-w", "-A", "OUTPUT", "-o", "lo", "-j", "ACCEPT"},
 		{"iptables", "-w", "-A", "OUTPUT", "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"},
 		{"iptables", "-w", "-A", "OUTPUT", "-d", p.config.BridgeIP, "-p", "tcp", "--dport", fmt.Sprintf("%d", p.config.ProxyPort), "-j", "ACCEPT"},
+		// 允许 DNS 查询，解析内部目标域名时需要
+		{"iptables", "-w", "-A", "OUTPUT", "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 		{"iptables", "-w", "-A", "OUTPUT", "-p", "udp", "-j", "DROP"},
 	}
-
-	for _, args := range policyCommands {
-		if err := p.runInSandboxNetns(args...); err != nil {
-			return fmt.Errorf("%v: %w", args, err)
+	for _, args := range policySteps {
+		if err := runCmd(args...); err != nil {
+			restoreNs()
+			return fmt.Errorf("apply sandbox egress policy: %v: %w", args, err)
 		}
 	}
+
+	// 恢复原始命名空间
+	restoreNs()
 
 	return nil
 }

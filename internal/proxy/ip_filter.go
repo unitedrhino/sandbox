@@ -52,15 +52,19 @@ type IPFilterConfig struct {
 	// AllowedPorts is the list of ports to allow (0 means any port is allowed)
 	// If empty, all ports are allowed in whitelist mode for matched IPs
 	AllowedPorts []int
+
+	// ExceptionRules 是黑名单模式下的例外规则，即使匹配到私有 CIDR 也允许通过
+	ExceptionRules []AllowRule
 }
 
 // IPFilter checks if an IP address belongs to private/internal networks.
 type IPFilter struct {
-	privateNets  []*net.IPNet
-	allowedNets  []*net.IPNet
-	mode         string
-	allowedIPs   map[string][]int // IP -> allowed ports (empty means any port)
-	allowedPorts []int
+	privateNets   []*net.IPNet
+	allowedNets   []*net.IPNet
+	mode          string
+	allowedIPs    map[string][]int // IP -> allowed ports (empty means any port)
+	allowedPorts  []int
+	exceptionIPs  map[string][]int // 黑名单模式下的例外 IP -> 端口（空表示允许任意端口）
 }
 
 // NewIPFilter creates a new IPFilter with the given CIDR list.
@@ -79,6 +83,7 @@ func NewIPFilterWithConfig(cfg IPFilterConfig) (*IPFilter, error) {
 		mode:         cfg.Mode,
 		allowedIPs:   make(map[string][]int),
 		allowedPorts: cfg.AllowedPorts,
+		exceptionIPs: make(map[string][]int),
 	}
 
 	if cfg.Mode == "" {
@@ -99,6 +104,16 @@ func NewIPFilterWithConfig(cfg IPFilterConfig) (*IPFilter, error) {
 				return nil, fmt.Errorf("invalid CIDR %q: %w", cidr, err)
 			}
 			f.privateNets = append(f.privateNets, ipNet)
+		}
+
+		// 初始化例外规则：黑名单模式下即使匹配私有 CIDR 也允许通过
+		for _, rule := range cfg.ExceptionRules {
+			ipKey := rule.IP.String()
+			if rule.Port > 0 {
+				f.exceptionIPs[ipKey] = append(f.exceptionIPs[ipKey], rule.Port)
+			} else {
+				f.exceptionIPs[ipKey] = []int{}
+			}
 		}
 	}
 
@@ -197,7 +212,14 @@ func (f *IPFilter) IsPublic(ip net.IP) bool {
 // Returns true if the port is allowed or if no port restrictions are set.
 func (f *IPFilter) IsPortAllowed(ip net.IP, port int) bool {
 	if f.mode == "blacklist" {
-		// In blacklist mode, just check if IP is blocked
+		// 先检查例外规则：即使 IP 在私有 CIDR 中，匹配例外则允许通过
+		ipStr := ip.String()
+		if allowedPorts, ok := f.exceptionIPs[ipStr]; ok {
+			if len(allowedPorts) == 0 || f.containsPort(allowedPorts, port) {
+				return true
+			}
+		}
+		// 默认黑名单逻辑：非私有 IP 允许，私有 IP 拒绝
 		return f.IsPublic(ip)
 	}
 

@@ -8,7 +8,7 @@ import (
 )
 
 func waitForTCPReady(ctx context.Context, addr string) error {
-	deadline := time.NewTimer(2 * time.Second)
+	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 
 	dialer := &net.Dialer{Timeout: 100 * time.Millisecond}

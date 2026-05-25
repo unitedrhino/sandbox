@@ -202,6 +202,8 @@ func executeCommand(ctx context.Context, spec ExecutionSpec, opts config.ExecOpt
 		go func() {
 			_ = netProxy.Start(execCtx)
 		}()
+		// 给 goroutine 一点时间启动
+		time.Sleep(10 * time.Millisecond)
 		if err := waitForTCPReady(execCtx, net.JoinHostPort(netProxy.GetBridgeIP(), strconv.Itoa(proxyPort))); err != nil {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 			_, _ = cmd.Process.Wait()
@@ -440,5 +442,10 @@ func buildInternalWhitelistFilter(targets []string) (*proxy.IPFilter, error) {
 	if len(rules) == 0 {
 		return nil, fmt.Errorf("no valid SANDBOX_ALLOWED_INTERNAL_TARGETS resolved")
 	}
-	return proxy.NewWhitelistFilterWithPorts(rules)
+	// 使用黑名单+例外模式：默认阻断私有 IP，例外规则中的 IP:Port 允许通过
+	// 公网 IP 不受限制，满足"外部网络不限制"的要求
+	return proxy.NewIPFilterWithConfig(proxy.IPFilterConfig{
+		Mode:           "blacklist",
+		ExceptionRules: rules,
+	})
 }
