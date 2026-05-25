@@ -16,8 +16,8 @@ COPY backend/.swagger ./.swagger
 COPY backend/share ./share
 COPY .gits/sandbox ./sandbox
 COPY .gits/cli ./cli/ur
-# 丢弃 CLI 工作树中的未提交变更，确保使用干净的已提交版本
-RUN cd /src/cli/ur && git reset --hard HEAD && git clean -fd
+# 丢弃 CLI 工作树中的未提交变更，确保使用干净的已提交版本（.dockerignore 可能排除了 .git，此时跳过）
+RUN cd /src/cli/ur && if [ -d .git ]; then git reset --hard HEAD && git clean -fd; fi
 WORKDIR /src/sandbox
 RUN go build -ldflags="-s -w" -o /out/sandbox .
 WORKDIR /src/cli/ur
